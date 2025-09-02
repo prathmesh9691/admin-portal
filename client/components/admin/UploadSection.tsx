@@ -11,6 +11,7 @@ export default function UploadSection() {
   const [uploading, setUploading] = useState(false);
   const [lastUpload, setLastUpload] = useState<UploadResponse | null>(null);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [extracted, setExtracted] = useState<{ policyId: string; policies: Array<{ title: string; content: string }> } | null>(null);
 
   function isPdf(selected: File) {
     return selected.type === "application/pdf" || selected.name.toLowerCase().endsWith(".pdf");
@@ -54,6 +55,18 @@ export default function UploadSection() {
       setPdfPreviewUrl(`data:application/pdf;base64,${base64}`);
       toast.success("PDF saved to Supabase SQL table");
       setFile(null);
+
+      // Trigger AI extraction for admin preview
+      try {
+        const { data: row } = await supabase.from("pdf_files").select("id").order("uploaded_at", { ascending: false }).limit(1).maybeSingle();
+        if (row?.id) {
+          const res = await fetch("/api/extract-policies", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ policyId: row.id }) });
+          if (res.ok) {
+            const out = await res.json();
+            setExtracted(out);
+          }
+        }
+      } catch {}
     } catch (err: any) {
       const message = err.error_description || err.message || "Upload failed";
       toast.error(message);
@@ -91,6 +104,19 @@ export default function UploadSection() {
               src={pdfPreviewUrl}
               className="w-full h-[70vh] border rounded-md"
             />
+          </div>
+        )}
+        {extracted && (
+          <div className="mt-6">
+            <div className="mb-2 text-sm font-medium">Extracted Policies (AI)</div>
+            <div className="space-y-3">
+              {extracted.policies.map((p, i) => (
+                <div key={i} className="border rounded-md p-3">
+                  <div className="font-semibold">{p.title}</div>
+                  <div className="text-sm text-muted-foreground whitespace-pre-wrap mt-1">{p.content}</div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </CardContent>

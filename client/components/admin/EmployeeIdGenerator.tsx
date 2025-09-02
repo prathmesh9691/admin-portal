@@ -12,23 +12,38 @@ export default function EmployeeIdGenerator() {
   const [form, setForm] = useState<EmployeeCreateRequest>({ name: "", department: "", email: "" });
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<Employee | null>(null);
+  const [generatedPassword, setGeneratedPassword] = useState<string>("");
+
+  async function sha256Hex(input: string): Promise<string> {
+    const enc = new TextEncoder().encode(input);
+    const hash = await crypto.subtle.digest("SHA-256", enc);
+    return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setCreating(true);
     try {
+      // Generate AI-created credentials (here: strong random password)
+      const tmpPassword = Array.from(crypto.getRandomValues(new Uint8Array(12)))
+        .map((n) => "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[n % 62])
+        .join("");
       const res = await apiJson<Employee>("/generate-employee-id", { method: "POST", body: form });
       setCreated(res);
       const supabase = getSupabase();
       if (supabase) {
-        await supabase.from("employees").insert({
+        const password_hash = await sha256Hex(tmpPassword);
+        const { error: empInsertError } = await supabase.from("employees").insert({
           employee_id: res.employeeId,
           name: res.name,
           department: res.department,
           email: res.email ?? null,
           created_at: new Date().toISOString(),
-        }).catch(() => {});
+          password_hash,
+        });
+        if (empInsertError) throw empInsertError;
       }
+      setGeneratedPassword(tmpPassword);
       toast.success("Employee ID generated");
     } catch (err: any) {
       toast.error(err.message || "Failed to generate ID");
@@ -65,6 +80,12 @@ export default function EmployeeIdGenerator() {
               <div className="text-sm text-muted-foreground">Generated Employee ID</div>
               <div className="text-2xl font-bold tracking-tight">{created.employeeId}</div>
               <div className="text-sm mt-1">{created.name} · {created.department}</div>
+              {generatedPassword && (
+                <div className="mt-3">
+                  <div className="text-xs text-muted-foreground">Temporary Password (share with employee)</div>
+                  <div className="font-mono text-sm break-all">{generatedPassword}</div>
+                </div>
+              )}
             </div>
           )}
         </form>

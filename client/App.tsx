@@ -14,6 +14,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import Employee from "./pages/Employee";
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
+import AdminRegister from "./pages/AdminRegister";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => {
             <main className="flex-1">
               <Routes>
                 <Route path="/" element={<Index />} />
+                <Route path="/admin/register" element={<AdminRegister />} />
                 <Route path="/admin/login" element={<AdminLogin />} />
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/employee" element={<Employee />} />

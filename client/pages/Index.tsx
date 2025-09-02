@@ -11,16 +11,19 @@ export default function Index() {
           <div>
             <span className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium tracking-wide text-muted-foreground">Modern HR Portal</span>
             <h1 className="mt-4 text-4xl md:text-6xl font-extrabold leading-tight tracking-tight">
-              Secure Admin tools and effortless Employee access
+              AI-powered HR manual processing and employee onboarding
             </h1>
             <p className="mt-4 text-lg text-muted-foreground max-w-prose">
-              PulseHR streamlines document management and employee ID generation with a delightful, mobile-first experience.
+              Upload HR manuals, auto-extract policies with AI, generate employee credentials, and assess policy understanding—all in one place.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
               <Button asChild size="lg">
-                <Link to="/admin/login">Admin</Link>
+                <Link to="/admin/register">Admin Register</Link>
               </Button>
               <Button asChild size="lg" variant="secondary">
+                <Link to="/admin/login">Admin Login</Link>
+              </Button>
+              <Button asChild size="lg" variant="ghost">
                 <Link to="/employee">Employee</Link>
               </Button>
             </div>
@@ -28,17 +31,17 @@ export default function Index() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card className="bg-gradient-to-br from-background to-secondary/30 border-primary/10">
               <CardHeader>
-                <CardTitle>Upload Manuals</CardTitle>
-                <CardDescription>HR Manuals, CODs, and more</CardDescription>
+                <CardTitle>AI Policy Extraction</CardTitle>
+                <CardDescription>Summarized policies from your manuals</CardDescription>
               </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">Secure storage with metadata tracking.</CardContent>
+              <CardContent className="text-sm text-muted-foreground">Preview extracted policies before publishing.</CardContent>
             </Card>
             <Card className="bg-gradient-to-br from-background to-secondary/30 border-primary/10">
               <CardHeader>
-                <CardTitle>Generate IDs</CardTitle>
-                <CardDescription>BST + 5 digits (e.g., BST20351)</CardDescription>
+                <CardTitle>Assessments</CardTitle>
+                <CardDescription>Auto-generate quizzes</CardDescription>
               </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">Unique IDs for every employee.</CardContent>
+              <CardContent className="text-sm text-muted-foreground">Measure employee understanding and track scores.</CardContent>
             </Card>
           </div>
         </div>
