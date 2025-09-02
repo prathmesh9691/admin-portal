@@ -81,29 +81,6 @@ export function createServer() {
     res.json({ ok: true, readAt: new Date().toISOString() });
   });
 
-  // Quiz generation from extracted policies (AI stub)
-  app.post("/api/quiz", async (req, res) => {
-    try {
-      const apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-      if (!apiKey) return res.status(500).json({ message: "Gemini API key missing" });
-      const policyId = req.body?.policyId;
-      if (!policyId) return res.status(400).json({ message: "policyId is required" });
-
-      // In future: fetch extracted policies from a table; for now, synthesize questions
-      const quiz = {
-        policyId,
-        questions: [
-          { q: "What is the purpose of the HR manual?", options: ["Policies", "Entertainment", "Marketing", "Sales"], answerIndex: 0 },
-          { q: "Who should you contact for leave approvals?", options: ["HR", "CEO", "Security", "Finance"], answerIndex: 0 },
-          { q: "What is the dress code policy?", options: ["Formal", "Casual", "None", "Uniform"], answerIndex: 0 },
-        ],
-      };
-      res.json(quiz);
-    } catch (e: any) {
-      res.status(500).json({ message: e.message || "Quiz error" });
-    }
-  });
-
   // Extract policies from uploaded PDF (real fetch from Supabase, AI stub)
   app.post("/api/extract-policies", async (req, res) => {
     try {
@@ -117,18 +94,55 @@ export function createServer() {
       if (error || !pdf) return res.status(404).json({ message: "pdf not found" });
 
       // TODO: Send pdf.content_base64 to Gemini for extraction. For now, we return a structured placeholder.
+      // In production, this would call Gemini API with the PDF content to extract actual policies
       const extracted = {
         policyId,
         policies: [
-          { title: "Code of Conduct", content: "Employees must adhere to the company code of conduct at all times." },
-          { title: "Leave Policy", content: "Leaves must be approved by HR as per the leave policy." },
-          { title: "Dress Code", content: "Formal attire is required from Monday to Thursday; casual Friday allowed." },
+          { title: "Code of Conduct", content: "Employees must adhere to the company code of conduct at all times. This includes maintaining professional behavior, respecting colleagues, and following company guidelines." },
+          { title: "Leave Policy", content: "Leaves must be approved by HR as per the leave policy. Employees should submit leave requests at least 3 days in advance for planned leaves." },
+          { title: "Dress Code", content: "Formal attire is required from Monday to Thursday; casual Friday allowed. Dress should be appropriate for a professional work environment." },
+          { title: "Working Hours", content: "Standard working hours are 9:00 AM to 6:00 PM with a 1-hour lunch break. Flexible timing may be available based on role requirements." },
+          { title: "Data Security", content: "Employees must maintain data confidentiality and follow security protocols. Do not share sensitive information outside the organization." },
         ],
       };
       res.json(extracted);
     } catch (e: any) {
       res.status(500).json({ message: e.message || "Extraction error" });
     }
+  });
+
+  // Quiz generation from extracted policies (AI stub)
+  app.post("/api/quiz", async (req, res) => {
+    try {
+      const apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+      if (!apiKey) return res.status(500).json({ message: "Gemini API key missing" });
+      const policyId = req.body?.policyId;
+      if (!policyId) return res.status(400).json({ message: "policyId is required" });
+
+      // In future: fetch extracted policies from a table; for now, synthesize questions
+      const quiz = {
+        policyId,
+        questions: [
+          { q: "What is the purpose of the HR manual?", options: ["Policies and guidelines", "Entertainment", "Marketing materials", "Sales information"], answerIndex: 0 },
+          { q: "Who should you contact for leave approvals?", options: ["HR Department", "CEO directly", "Security team", "Finance department"], answerIndex: 0 },
+          { q: "What is the dress code policy for weekdays?", options: ["Formal attire required", "Casual wear allowed", "No dress code", "Uniform mandatory"], answerIndex: 0 },
+          { q: "What are the standard working hours?", options: ["9:00 AM to 6:00 PM", "8:00 AM to 5:00 PM", "10:00 AM to 7:00 PM", "Flexible timing only"], answerIndex: 0 },
+          { q: "How should employees handle sensitive data?", options: ["Maintain confidentiality", "Share with friends", "Post on social media", "Ignore security protocols"], answerIndex: 0 },
+        ],
+      };
+      res.json(quiz);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Quiz error" });
+    }
+  });
+
+  // Employee onboarding data (stub)
+  app.post("/api/employee-onboarding", (req, res) => {
+    const { employeeId, ...onboardingData } = req.body ?? {};
+    if (!employeeId) return res.status(400).json({ message: "employeeId is required" });
+    
+    // In production, this would save to employee_onboarding table
+    res.json({ ok: true, message: "Onboarding data received", employeeId });
   });
 
   // Mock upload (does not parse multipart, returns stub)

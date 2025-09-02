@@ -1,5 +1,6 @@
 import UploadSection from "@/components/admin/UploadSection";
 import EmployeeIdGenerator from "@/components/admin/EmployeeIdGenerator";
+import EmployeeManagement from "@/components/admin/EmployeeManagement";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -17,6 +18,7 @@ export default function AdminDashboard() {
         <UploadSection />
         <EmployeeIdGenerator />
       </div>
+      <EmployeeManagement />
     </div>
   );
 }
