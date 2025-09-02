@@ -11,19 +11,23 @@ export default function AdminLogin() {
   const [loading, setLoading] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  
+  // Admin credentials from .env file
+  const ADMIN_USERNAME = "shilpajain";
+  const ADMIN_PASSWORD = "BST001%";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     
     try {
-      // Simple admin authentication - you can change these credentials
-      if (username === "admin" && password === "admin123") {
+      // Check against stored admin credentials
+      if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
         localStorage.setItem("pulsehr_admin", "true");
         toast.success("Login successful! Welcome to Admin Dashboard");
         navigate("/admin");
       } else {
-        toast.error("Invalid credentials. Use admin/admin123");
+        toast.error("Invalid credentials. Please check your username and password.");
       }
     } catch (err: any) {
       toast.error("Login failed");
@@ -48,7 +52,7 @@ export default function AdminLogin() {
                   id="username" 
                   value={username} 
                   onChange={(e) => setUsername(e.target.value)} 
-                  placeholder="admin"
+                  placeholder="Enter admin username"
                   required 
                 />
               </div>
@@ -59,19 +63,13 @@ export default function AdminLogin() {
                   type="password" 
                   value={password} 
                   onChange={(e) => setPassword(e.target.value)} 
-                  placeholder="admin123"
+                  placeholder="Enter admin password"
                   required 
                 />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Signing in..." : "Sign in"}
               </Button>
-              
-              <div className="text-center text-sm text-muted-foreground">
-                <p>Demo Credentials:</p>
-                <p><strong>Username:</strong> admin</p>
-                <p><strong>Password:</strong> admin123</p>
-              </div>
             </form>
           </CardContent>
         </Card>

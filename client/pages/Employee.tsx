@@ -2,117 +2,168 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { getSupabase } from "@/lib/supabase";
 import OnboardingForm from "@/components/employee/OnboardingForm";
 import AssessmentCenter from "@/components/employee/AssessmentCenter";
 
+interface EmployeeSession {
+  id: string;
+  employee_id: string;
+  name: string;
+  department: string;
+}
+
 export default function Employee() {
-  const [employeeId, setEmployeeId] = useState<string>("");
+  const [employeeId, setEmployeeId] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [session, setSession] = useState<EmployeeSession | null>(null);
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("onboarding");
   const supabase = getSupabase();
 
   useEffect(() => {
-    checkEmployeeStatus();
+    // Check if employee is already logged in
+    const storedSession = localStorage.getItem("pulsehr_employee");
+    if (storedSession) {
+      try {
+        const sessionData = JSON.parse(storedSession);
+        setSession(sessionData);
+        checkOnboardingStatus(sessionData.id);
+      } catch (e) {
+        localStorage.removeItem("pulsehr_employee");
+      }
+    }
   }, []);
 
-  async function checkEmployeeStatus() {
+  async function checkOnboardingStatus(employeeId: string) {
     if (!supabase) return;
     
     try {
-      // Check if employee ID exists in localStorage
-      const storedId = localStorage.getItem("pulsehr_employee_id");
-      if (storedId) {
-        setEmployeeId(storedId);
-        
-        // Check if onboarding is completed
-        const { data, error } = await supabase
-          .from("employee_onboarding")
-          .select("completed")
-          .eq("employee_id", storedId)
-          .maybeSingle();
-        
-        if (error) throw error;
-        
-        if (data?.completed) {
-          setOnboardingCompleted(true);
-          setActiveTab("assessments");
-        }
+      const { data, error } = await supabase
+        .from("employee_onboarding")
+        .select("completed")
+        .eq("employee_id", employeeId)
+        .maybeSingle();
+      
+      if (error) throw error;
+      
+      if (data?.completed) {
+        setOnboardingCompleted(true);
+        setActiveTab("assessments");
       }
     } catch (err: any) {
-      console.error("Failed to check employee status:", err);
+      console.error("Failed to check onboarding status:", err);
+    }
+  }
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!supabase) return;
+    
+    setLoading(true);
+    try {
+      // Hash the password for comparison
+      const passwordHash = await sha256Hex(password);
+      
+      // Find employee with matching credentials
+      const { data: employee, error } = await supabase
+        .from("employees")
+        .select("id, employee_id, name, department")
+        .eq("employee_id", employeeId)
+        .eq("password_hash", passwordHash)
+        .maybeSingle();
+      
+      if (error) throw error;
+      
+      if (!employee) {
+        toast.error("Invalid employee ID or password");
+        return;
+      }
+      
+      // Store session
+      const sessionData = {
+        id: employee.id,
+        employee_id: employee.employee_id,
+        name: employee.name,
+        department: employee.department
+      };
+      
+      setSession(sessionData);
+      localStorage.setItem("pulsehr_employee", JSON.stringify(sessionData));
+      
+      // Check onboarding status
+      await checkOnboardingStatus(employee.id);
+      
+      toast.success(`Welcome, ${employee.name}!`);
+    } catch (err: any) {
+      toast.error(err.message || "Login failed");
     } finally {
       setLoading(false);
     }
   }
 
-  async function generateEmployeeId() {
-    if (!supabase) return;
-    
-    try {
-      const timestamp = Date.now().toString();
-      const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-      const newId = `EMP${timestamp.slice(-6)}${random}`;
-      
-      // Check if ID already exists
-      const { data: existing } = await supabase
-        .from("employees")
-        .select("id")
-        .eq("employee_id", newId)
-        .maybeSingle();
-      
-      if (existing) {
-        // If exists, generate a new one
-        return generateEmployeeId();
-      }
-      
-      // Create new employee record
-      const { error } = await supabase
-        .from("employees")
-        .insert({
-          employee_id: newId,
-          name: "New Employee",
-          department: "General",
-          created_at: new Date().toISOString()
-        });
-      
-      if (error) throw error;
-      
-      setEmployeeId(newId);
-      localStorage.setItem("pulsehr_employee_id", newId);
-      toast.success(`Employee ID generated: ${newId}`);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to generate employee ID");
-    }
+  async function sha256Hex(input: string): Promise<string> {
+    const enc = new TextEncoder().encode(input);
+    const hash = await crypto.subtle.digest("SHA-256", enc);
+    return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
   }
 
-  if (loading) {
+  function handleLogout() {
+    setSession(null);
+    setOnboardingCompleted(false);
+    localStorage.removeItem("pulsehr_employee");
+    toast.success("Logged out successfully");
+  }
+
+  // Show login form if not authenticated
+  if (!session) {
     return (
       <div className="container mx-auto p-6">
-        <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>Loading employee portal...</p>
+        <div className="max-w-md mx-auto">
+          <Card>
+            <CardHeader>
+              <CardTitle>Employee Login</CardTitle>
+              <CardDescription>Login with your employee ID and password provided by admin</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="employeeId">Employee ID</Label>
+                  <Input 
+                    id="employeeId" 
+                    value={employeeId} 
+                    onChange={(e) => setEmployeeId(e.target.value)} 
+                    placeholder="e.g., EMP123456ABC"
+                    required 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input 
+                    id="password" 
+                    type="password" 
+                    value={password} 
+                    onChange={(e) => setPassword(e.target.value)} 
+                    placeholder="Enter your password"
+                    required 
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Signing in..." : "Sign In"}
+                </Button>
+                
+                <div className="text-center text-sm text-muted-foreground">
+                  <p>Don't have credentials?</p>
+                  <p>Contact your admin to get your employee ID and password.</p>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         </div>
-      </div>
-    );
-  }
-
-  if (!employeeId) {
-    return (
-      <div className="container mx-auto p-6">
-        <Card className="w-full max-w-md mx-auto">
-          <CardHeader>
-            <CardTitle>Welcome to PulseHR</CardTitle>
-            <CardDescription>Generate your employee ID to get started</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={generateEmployeeId} className="w-full">
-              Generate Employee ID
-            </Button>
-          </CardContent>
-        </Card>
       </div>
     );
   }
@@ -122,7 +173,9 @@ export default function Employee() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Employee Portal</h1>
-          <p className="text-muted-foreground">Employee ID: {employeeId}</p>
+          <p className="text-muted-foreground">
+            Welcome, {session.name} • ID: {session.employee_id} • {session.department}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setActiveTab("onboarding")}>
@@ -130,6 +183,9 @@ export default function Employee() {
           </Button>
           <Button variant="outline" onClick={() => setActiveTab("assessments")}>
             Assessments
+          </Button>
+          <Button variant="outline" onClick={handleLogout}>
+            Logout
           </Button>
         </div>
       </div>
@@ -143,7 +199,7 @@ export default function Employee() {
         <TabsContent value="onboarding" className="space-y-6">
           {!onboardingCompleted ? (
             <OnboardingForm 
-              employeeId={employeeId} 
+              employeeId={session.id} 
               onComplete={() => {
                 setOnboardingCompleted(true);
                 setActiveTab("assessments");
@@ -178,7 +234,7 @@ export default function Employee() {
 
         <TabsContent value="assessments" className="space-y-6">
           {onboardingCompleted ? (
-            <AssessmentCenter employeeId={employeeId} />
+            <AssessmentCenter employeeId={session.id} />
           ) : (
             <Card>
               <CardHeader>
@@ -203,3 +259,4 @@ export default function Employee() {
     </div>
   );
 }
+

@@ -12,6 +12,7 @@ import EmployeeManagement from "@/components/admin/EmployeeManagement";
 import UploadSection from "@/components/admin/UploadSection";
 import AssessmentManagement from "@/components/admin/AssessmentManagement";
 import DashboardAnalytics from "@/components/admin/DashboardAnalytics";
+import EmployeeIdGenerator from "@/components/admin/EmployeeIdGenerator";
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -85,9 +86,10 @@ export default function AdminDashboard() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="employees">Employees</TabsTrigger>
+          <TabsTrigger value="create-employee">Create Employee</TabsTrigger>
           <TabsTrigger value="assessments">Assessments</TabsTrigger>
           <TabsTrigger value="uploads">Documents</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
@@ -166,7 +168,18 @@ export default function AdminDashboard() {
               <CardDescription>Common administrative tasks</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Button 
+                  variant="outline" 
+                  className="h-24 flex flex-col items-center justify-center"
+                  onClick={() => setActiveTab("create-employee")}
+                >
+                  <svg className="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Create Employee
+                </Button>
+                
                 <Button 
                   variant="outline" 
                   className="h-24 flex flex-col items-center justify-center"
@@ -206,6 +219,10 @@ export default function AdminDashboard() {
 
         <TabsContent value="employees" className="space-y-6">
           <EmployeeManagement />
+        </TabsContent>
+
+        <TabsContent value="create-employee" className="space-y-6">
+          <EmployeeIdGenerator />
         </TabsContent>
 
         <TabsContent value="assessments" className="space-y-6">
