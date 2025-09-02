@@ -24,6 +24,7 @@
     "noImplicitAny": false,
     "noFallthroughCasesInSwitch": false,
     "strictNullChecks": false,
+    "types": ["vite/client"],
 
     /* Path mapping */
     "baseUrl": ".",
