@@ -1,265 +1,205 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { getSupabase } from "@/lib/supabase";
 import OnboardingForm from "@/components/employee/OnboardingForm";
+import AssessmentCenter from "@/components/employee/AssessmentCenter";
 
-export default function EmployeePage() {
-  const [employeeId, setEmployeeId] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [sessionEmp, setSessionEmp] = useState<{ id: string; employee_id: string; name: string } | null>(null);
-  const [policies, setPolicies] = useState<Array<{ id: string; file_name: string; uploaded_at: string }>>([]);
+export default function Employee() {
+  const [employeeId, setEmployeeId] = useState<string>("");
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
-  const [quiz, setQuiz] = useState<{ policyId: string; questions: Array<{ q: string; options: string[]; answerIndex: number }> } | null>(null);
-  const [answers, setAnswers] = useState<Record<number, number>>({});
-  const [score, setScore] = useState<number | null>(null);
-  const supabase = useMemo(() => getSupabase(), []);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("onboarding");
+  const supabase = getSupabase();
 
-  async function sha256Hex(input: string): Promise<string> {
-    const enc = new TextEncoder().encode(input);
-    const hash = await crypto.subtle.digest("SHA-256", enc);
-    return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
-  }
+  useEffect(() => {
+    checkEmployeeStatus();
+  }, []);
 
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    if (!supabase) return toast.error("Supabase not configured");
-    setLoading(true);
+  async function checkEmployeeStatus() {
+    if (!supabase) return;
+    
     try {
-      const enteredId = employeeId.trim();
-      const enteredPass = password.trim();
-      if (!enteredId || !enteredPass) throw new Error("Enter ID and password");
-      const ph = await sha256Hex(enteredPass);
-      const { data, error } = await supabase
-        .from("employees")
-        .select("id, employee_id, name, password_hash")
-        .eq("employee_id", enteredId)
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) throw new Error("Employee ID not found");
-      if ((data.password_hash || "") !== ph) throw new Error("Invalid credentials");
-      setSessionEmp({ id: data.id, employee_id: data.employee_id, name: data.name });
-      localStorage.setItem("pulsehr_employee", JSON.stringify({ id: data.id, employee_id: data.employee_id, name: data.name }));
-      
-      // Check if onboarding is completed
-      await checkOnboardingStatus(data.id);
-      await loadPolicies();
-      toast.success("Logged in");
+      // Check if employee ID exists in localStorage
+      const storedId = localStorage.getItem("pulsehr_employee_id");
+      if (storedId) {
+        setEmployeeId(storedId);
+        
+        // Check if onboarding is completed
+        const { data, error } = await supabase
+          .from("employee_onboarding")
+          .select("completed")
+          .eq("employee_id", storedId)
+          .maybeSingle();
+        
+        if (error) throw error;
+        
+        if (data?.completed) {
+          setOnboardingCompleted(true);
+          setActiveTab("assessments");
+        }
+      }
     } catch (err: any) {
-      toast.error(err.message || "Login failed");
+      console.error("Failed to check employee status:", err);
     } finally {
       setLoading(false);
     }
   }
 
-  async function checkOnboardingStatus(employeeId: string) {
+  async function generateEmployeeId() {
     if (!supabase) return;
-    const { data, error } = await supabase
-      .from("employee_onboarding")
-      .select("completed")
-      .eq("employee_id", employeeId)
-      .maybeSingle();
     
-    if (!error && data) {
-      setOnboardingCompleted(data.completed);
-    }
-  }
-
-  async function loadPolicies() {
-    if (!supabase) return;
-    const { data, error } = await supabase.from("pdf_files").select("id, file_name, uploaded_at").order("uploaded_at", { ascending: false });
-    if (error) return toast.error(error.message);
-    setPolicies((data || []).map((d: any) => ({ id: d.id, file_name: d.file_name, uploaded_at: d.uploaded_at })));
-  }
-
-  async function acknowledgePolicy(policyId: string) {
-    if (!supabase || !sessionEmp) return;
-    const { error } = await supabase.from("policy_reads").insert({ employee_id: sessionEmp.id, policy_id: policyId, read_at: new Date().toISOString() });
-    if (error) return toast.error(error.message);
-    toast.success("Acknowledged");
-  }
-
-  function logout() {
-    setSessionEmp(null);
-    setOnboardingCompleted(false);
-    localStorage.removeItem("pulsehr_employee");
-  }
-
-  async function startAssessment(policyId: string) {
     try {
-      toast.message("Generating questions...");
-      const res = await fetch("/api/quiz", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ policyId }) });
-      if (!res.ok) throw new Error("Failed to generate quiz");
-      const quiz = await res.json();
-      localStorage.setItem("pulsehr_quiz", JSON.stringify(quiz));
-      window.location.href = `/employee?quiz=${encodeURIComponent(policyId)}`; // simple navigation (reuse page or future route)
-    } catch (e: any) {
-      toast.error(e.message || "Quiz failed");
+      const timestamp = Date.now().toString();
+      const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const newId = `EMP${timestamp.slice(-6)}${random}`;
+      
+      // Check if ID already exists
+      const { data: existing } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("employee_id", newId)
+        .maybeSingle();
+      
+      if (existing) {
+        // If exists, generate a new one
+        return generateEmployeeId();
+      }
+      
+      // Create new employee record
+      const { error } = await supabase
+        .from("employees")
+        .insert({
+          employee_id: newId,
+          name: "New Employee",
+          department: "General",
+          created_at: new Date().toISOString()
+        });
+      
+      if (error) throw error;
+      
+      setEmployeeId(newId);
+      localStorage.setItem("pulsehr_employee_id", newId);
+      toast.success(`Employee ID generated: ${newId}`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to generate employee ID");
     }
   }
 
-  useEffect(() => {
-    // Restore employee session
-    const raw = localStorage.getItem("pulsehr_employee");
-    if (raw) {
-      try {
-        const emp = JSON.parse(raw);
-        if (emp?.id) {
-          setSessionEmp(emp);
-          checkOnboardingStatus(emp.id);
-        }
-      } catch {}
-    }
-    // Load policies on mount if session exists
-    // handled by separate effect
-  }, []);
-
-  useEffect(() => {
-    if (sessionEmp) {
-      loadPolicies();
-    }
-  }, [sessionEmp]);
-
-  useEffect(() => {
-    // Restore quiz if present
-    const rawQuiz = localStorage.getItem("pulsehr_quiz");
-    if (rawQuiz) {
-      try {
-        const qz = JSON.parse(rawQuiz);
-        if (qz?.questions?.length) setQuiz(qz);
-      } catch {}
-    }
-  }, []);
-
-  function selectAnswer(questionIndex: number, optionIndex: number) {
-    setAnswers((a) => ({ ...a, [questionIndex]: optionIndex }));
-  }
-
-  function submitQuiz() {
-    if (!quiz) return;
-    let correct = 0;
-    quiz.questions.forEach((q, idx) => {
-      if (answers[idx] === q.answerIndex) correct++;
-    });
-    setScore(correct);
-    toast.success(`Scored ${correct}/${quiz.questions.length}`);
-  }
-
-  function clearQuiz() {
-    setQuiz(null);
-    setAnswers({});
-    setScore(null);
-    localStorage.removeItem("pulsehr_quiz");
-  }
-
-  // Show onboarding form if not completed
-  if (sessionEmp && !onboardingCompleted) {
+  if (loading) {
     return (
-      <div className="container max-w-6xl mx-auto px-4 py-12 md:py-20">
-        <OnboardingForm 
-          employeeId={sessionEmp.id} 
-          onComplete={() => setOnboardingCompleted(true)} 
-        />
+      <div className="container mx-auto p-6">
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Loading employee portal...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!employeeId) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card className="w-full max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle>Welcome to PulseHR</CardTitle>
+            <CardDescription>Generate your employee ID to get started</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={generateEmployeeId} className="w-full">
+              Generate Employee ID
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="container max-w-6xl mx-auto px-4 py-12 md:py-20">
-      <div className="max-w-2xl mx-auto">
-        {!sessionEmp ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Employee Login</CardTitle>
-              <CardDescription>Use your ID and password provided by admin</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="employeeId">Employee ID</Label>
-                  <Input id="employeeId" placeholder="BST12345" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input id="password" type="password" placeholder="********" value={password} onChange={(e) => setPassword(e.target.value)} required />
-                </div>
-                <Button type="submit" disabled={loading}>{loading ? "Signing in..." : "Sign In"}</Button>
-              </form>
-            </CardContent>
-          </Card>
-        ) : quiz ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Assessment</CardTitle>
-              <CardDescription>Answer the questions below</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {quiz.questions.map((q, qi) => (
-                  <div key={qi} className="border rounded-md p-3">
-                    <div className="font-medium mb-2">Q{qi + 1}. {q.q}</div>
-                    <div className="grid gap-2">
-                      {q.options.map((opt, oi) => (
-                        <label key={oi} className={`flex items-center gap-2 cursor-pointer ${answers[qi] === oi ? "text-primary" : ""}`}>
-                          <input
-                            type="radio"
-                            name={`q-${qi}`}
-                            checked={answers[qi] === oi}
-                            onChange={() => selectAnswer(qi, oi)}
-                          />
-                          <span>{opt}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                <div className="flex items-center gap-2">
-                  <Button onClick={submitQuiz}>Submit</Button>
-                  <Button variant="secondary" onClick={clearQuiz}>Cancel</Button>
-                </div>
-                {score !== null && (
-                  <div className="mt-2 text-sm">Your score: {score}/{quiz.questions.length}</div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold">Welcome, {sessionEmp.name}</h2>
-              <Button variant="secondary" onClick={logout}>Logout</Button>
-            </div>
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Employee Portal</h1>
+          <p className="text-muted-foreground">Employee ID: {employeeId}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setActiveTab("onboarding")}>
+            Onboarding
+          </Button>
+          <Button variant="outline" onClick={() => setActiveTab("assessments")}>
+            Assessments
+          </Button>
+        </div>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="onboarding">Onboarding</TabsTrigger>
+          <TabsTrigger value="assessments">Assessment Center</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="onboarding" className="space-y-6">
+          {!onboardingCompleted ? (
+            <OnboardingForm 
+              employeeId={employeeId} 
+              onComplete={() => {
+                setOnboardingCompleted(true);
+                setActiveTab("assessments");
+                toast.success("Onboarding completed! You can now access assessments.");
+              }} 
+            />
+          ) : (
             <Card>
               <CardHeader>
-                <CardTitle>Policies</CardTitle>
-                <CardDescription>Read and acknowledge each policy, then take the assessment</CardDescription>
+                <CardTitle>Onboarding Completed</CardTitle>
+                <CardDescription>You have successfully completed your onboarding process.</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {policies.length === 0 && (
-                    <div className="text-sm text-muted-foreground">No policies uploaded yet.</div>
-                  )}
-                  {policies.map((p) => (
-                    <div key={p.id} className="border rounded-md p-3">
-                      <div className="font-medium">{p.file_name}</div>
-                      <div className="text-xs text-muted-foreground mb-2">Uploaded {new Date(p.uploaded_at).toLocaleString()}</div>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={() => acknowledgePolicy(p.id)}>I have read this</Button>
-                        <Button size="sm" variant="outline" onClick={() => startAssessment(p.id)}>Start Assessment</Button>
-                      </div>
-                    </div>
-                  ))}
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <p className="text-lg font-medium text-green-600 mb-2">Congratulations!</p>
+                  <p className="text-muted-foreground mb-4">
+                    Your onboarding is complete. You can now access the assessment center and training modules.
+                  </p>
+                  <Button onClick={() => setActiveTab("assessments")}>
+                    Go to Assessment Center
+                  </Button>
                 </div>
               </CardContent>
             </Card>
-          </>
-        )}
-      </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="assessments" className="space-y-6">
+          {onboardingCompleted ? (
+            <AssessmentCenter employeeId={employeeId} />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Assessment Center</CardTitle>
+                <CardDescription>Complete your onboarding to access assessments</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>Please complete your onboarding process first to access assessments and training.</p>
+                  <Button 
+                    className="mt-4" 
+                    onClick={() => setActiveTab("onboarding")}
+                  >
+                    Complete Onboarding
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
