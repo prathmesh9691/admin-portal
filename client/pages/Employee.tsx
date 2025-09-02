@@ -28,15 +28,19 @@ export default function EmployeePage() {
     if (!supabase) return toast.error("Supabase not configured");
     setLoading(true);
     try {
-      const ph = await sha256Hex(password);
+      const enteredId = employeeId.trim();
+      const enteredPass = password.trim();
+      if (!enteredId || !enteredPass) throw new Error("Enter ID and password");
+      const ph = await sha256Hex(enteredPass);
       const { data, error } = await supabase
         .from("employees")
         .select("id, employee_id, name, password_hash")
-        .eq("employee_id", employeeId)
+        .eq("employee_id", enteredId)
         .limit(1)
         .maybeSingle();
       if (error) throw error;
-      if (!data || data.password_hash !== ph) throw new Error("Invalid credentials");
+      if (!data) throw new Error("Employee ID not found");
+      if ((data.password_hash || "") !== ph) throw new Error("Invalid credentials");
       setSessionEmp({ id: data.id, employee_id: data.employee_id, name: data.name });
       localStorage.setItem("pulsehr_employee", JSON.stringify({ id: data.id, employee_id: data.employee_id, name: data.name }));
       await loadPolicies();
