@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { getSupabase } from "@/lib/supabase";
+import OnboardingForm from "@/components/employee/OnboardingForm";
 
 export default function EmployeePage() {
   const [employeeId, setEmployeeId] = useState("");
@@ -12,6 +13,7 @@ export default function EmployeePage() {
   const [loading, setLoading] = useState(false);
   const [sessionEmp, setSessionEmp] = useState<{ id: string; employee_id: string; name: string } | null>(null);
   const [policies, setPolicies] = useState<Array<{ id: string; file_name: string; uploaded_at: string }>>([]);
+  const [onboardingCompleted, setOnboardingCompleted] = useState(false);
   const [quiz, setQuiz] = useState<{ policyId: string; questions: Array<{ q: string; options: string[]; answerIndex: number }> } | null>(null);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [score, setScore] = useState<number | null>(null);
@@ -43,12 +45,28 @@ export default function EmployeePage() {
       if ((data.password_hash || "") !== ph) throw new Error("Invalid credentials");
       setSessionEmp({ id: data.id, employee_id: data.employee_id, name: data.name });
       localStorage.setItem("pulsehr_employee", JSON.stringify({ id: data.id, employee_id: data.employee_id, name: data.name }));
+      
+      // Check if onboarding is completed
+      await checkOnboardingStatus(data.id);
       await loadPolicies();
       toast.success("Logged in");
     } catch (err: any) {
       toast.error(err.message || "Login failed");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function checkOnboardingStatus(employeeId: string) {
+    if (!supabase) return;
+    const { data, error } = await supabase
+      .from("employee_onboarding")
+      .select("completed")
+      .eq("employee_id", employeeId)
+      .maybeSingle();
+    
+    if (!error && data) {
+      setOnboardingCompleted(data.completed);
     }
   }
 
@@ -68,6 +86,7 @@ export default function EmployeePage() {
 
   function logout() {
     setSessionEmp(null);
+    setOnboardingCompleted(false);
     localStorage.removeItem("pulsehr_employee");
   }
 
@@ -90,7 +109,10 @@ export default function EmployeePage() {
     if (raw) {
       try {
         const emp = JSON.parse(raw);
-        if (emp?.id) setSessionEmp(emp);
+        if (emp?.id) {
+          setSessionEmp(emp);
+          checkOnboardingStatus(emp.id);
+        }
       } catch {}
     }
     // Load policies on mount if session exists
@@ -133,6 +155,18 @@ export default function EmployeePage() {
     setAnswers({});
     setScore(null);
     localStorage.removeItem("pulsehr_quiz");
+  }
+
+  // Show onboarding form if not completed
+  if (sessionEmp && !onboardingCompleted) {
+    return (
+      <div className="container max-w-6xl mx-auto px-4 py-12 md:py-20">
+        <OnboardingForm 
+          employeeId={sessionEmp.id} 
+          onComplete={() => setOnboardingCompleted(true)} 
+        />
+      </div>
+    );
   }
 
   return (

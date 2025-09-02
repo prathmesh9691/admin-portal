@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 export default function Index() {
   return (
     <section className="relative">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(90%_60%_at_20%_10%,hsl(var(--primary)/0.25),transparent),radial-gradient(80%_60%_at_80%_20%,theme(colors.purple.500/.25),transparent)]" />
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(90%_60%_at_20%_10%,hsl(var(--primary)/0.25),transparent),radial-gradient(80%_60%_at_80%_20%,theme(colors.orange.500/.25),transparent)]" />
       <div className="container max-w-6xl mx-auto px-4 py-16 md:py-24">
         <div className="grid gap-10 md:gap-16 items-center md:grid-cols-2">
           <div>
@@ -18,13 +18,10 @@ export default function Index() {
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
               <Button asChild size="lg">
-                <Link to="/admin/register">Admin Register</Link>
-              </Button>
-              <Button asChild size="lg" variant="secondary">
                 <Link to="/admin/login">Admin Login</Link>
               </Button>
-              <Button asChild size="lg" variant="ghost">
-                <Link to="/employee">Employee</Link>
+              <Button asChild size="lg" variant="secondary">
+                <Link to="/employee">Employee Portal</Link>
               </Button>
             </div>
           </div>
@@ -38,10 +35,10 @@ export default function Index() {
             </Card>
             <Card className="bg-gradient-to-br from-background to-secondary/30 border-primary/10">
               <CardHeader>
-                <CardTitle>Assessments</CardTitle>
-                <CardDescription>Auto-generate quizzes</CardDescription>
+                <CardTitle>Employee Onboarding</CardTitle>
+                <CardDescription>Complete profile setup</CardDescription>
               </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">Measure employee understanding and track scores.</CardContent>
+              <CardContent className="text-sm text-muted-foreground">Multi-section form with document uploads.</CardContent>
             </Card>
           </div>
         </div>
