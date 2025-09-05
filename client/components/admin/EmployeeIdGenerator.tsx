@@ -36,9 +36,9 @@ export default function EmployeeIdGenerator() {
   }
 
   function generateEmployeeId(): string {
-    const timestamp = Date.now().toString();
-    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-    return `EMP${timestamp.slice(-6)}${random}`;
+    // Format: BST + 5 digits (total 8 characters), e.g., BST12345
+    const rand5 = Math.floor(10000 + Math.random() * 90000); // ensures 5 digits
+    return `BST${rand5}`;
   }
 
   function generatePassword(): string {

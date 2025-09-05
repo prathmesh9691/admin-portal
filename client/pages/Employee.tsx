@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { getSupabase } from "@/lib/supabase";
 import OnboardingForm from "@/components/employee/OnboardingForm";
 import AssessmentCenter from "@/components/employee/AssessmentCenter";
+import CompanyDescriptionViewer from "@/components/employee/CompanyDescriptionViewer";
+import HRManualReader from "@/components/employee/HRManualReader";
 
 interface EmployeeSession {
   id: string;
@@ -22,6 +24,8 @@ export default function Employee() {
   const [loading, setLoading] = useState(false);
   const [session, setSession] = useState<EmployeeSession | null>(null);
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
+  const [companyIntroDone, setCompanyIntroDone] = useState(false);
+  const [hrManualsDone, setHrManualsDone] = useState(false);
   const [activeTab, setActiveTab] = useState("onboarding");
   const supabase = getSupabase();
 
@@ -53,7 +57,6 @@ export default function Employee() {
       
       if (data?.completed) {
         setOnboardingCompleted(true);
-        setActiveTab("assessments");
       }
     } catch (err: any) {
       console.error("Failed to check onboarding status:", err);
@@ -63,6 +66,11 @@ export default function Employee() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     if (!supabase) return;
+    const idPattern = /^BST\d{5}$/;
+    if (!idPattern.test(employeeId)) {
+      toast.error("Employee ID must be BST followed by 5 digits (e.g., BST12345)");
+      return;
+    }
     
     setLoading(true);
     try {
@@ -137,7 +145,7 @@ export default function Employee() {
                     id="employeeId" 
                     value={employeeId} 
                     onChange={(e) => setEmployeeId(e.target.value)} 
-                    placeholder="e.g., EMP123456ABC"
+                    placeholder="e.g., BST12345"
                     required 
                   />
                 </div>
@@ -197,32 +205,25 @@ export default function Employee() {
         </TabsList>
 
         <TabsContent value="onboarding" className="space-y-6">
-          {!onboardingCompleted ? (
+          {!companyIntroDone ? (
+            <CompanyDescriptionViewer onComplete={() => setCompanyIntroDone(true)} />
+          ) : !onboardingCompleted ? (
             <OnboardingForm 
               employeeId={session.id} 
               onComplete={() => {
                 setOnboardingCompleted(true);
-                setActiveTab("assessments");
-                toast.success("Onboarding completed! You can now access assessments.");
               }} 
             />
+          ) : !hrManualsDone ? (
+            <HRManualReader onComplete={() => { setHrManualsDone(true); setActiveTab("assessments"); }} />
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle>Onboarding Completed</CardTitle>
-                <CardDescription>You have successfully completed your onboarding process.</CardDescription>
+                <CardTitle>Ready for Assessment</CardTitle>
+                <CardDescription>You have completed onboarding and HR manuals.</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="text-center py-8">
-                  <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <p className="text-lg font-medium text-green-600 mb-2">Congratulations!</p>
-                  <p className="text-muted-foreground mb-4">
-                    Your onboarding is complete. You can now access the assessment center and training modules.
-                  </p>
                   <Button onClick={() => setActiveTab("assessments")}>
                     Go to Assessment Center
                   </Button>

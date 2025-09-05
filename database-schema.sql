@@ -211,7 +211,16 @@ CREATE TABLE IF NOT EXISTS feedback_360 (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- PDF files (existing)
+-- HR Manual Categories
+CREATE TABLE IF NOT EXISTS hr_manual_categories (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    order_index INTEGER NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- PDF files (updated to support categories)
 CREATE TABLE IF NOT EXISTS pdf_files (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     file_name VARCHAR(255) NOT NULL,
@@ -220,6 +229,7 @@ CREATE TABLE IF NOT EXISTS pdf_files (
     uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     content_base64 TEXT,
     extracted_policies JSONB,
+    category_id UUID REFERENCES hr_manual_categories(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -264,3 +274,23 @@ INSERT INTO training_modules (title, description, category, duration_hours, requ
 ('Communication Skills', 'Effective communication in the workplace', 'Soft Skills', 1.5, false, 'Complete all modules'),
 ('Technical Training', 'Job-specific technical skills', 'Technical', 4.0, true, 'Complete all modules and demonstrate skills')
 ON CONFLICT DO NOTHING;
+
+-- Insert HR Manual Categories
+INSERT INTO hr_manual_categories (name, description, order_index) VALUES
+('Company Description', 'Company overview shown to employees on first login', 0),
+('Policy Organization Chart', 'Organizational structure and policy hierarchy', 1),
+('Recruitment Policy', 'Guidelines for hiring and recruitment processes', 2),
+('Joining Onboarding Process', 'Employee onboarding procedures and requirements', 3),
+('Probation Period & Confirmation Policy', 'Probation period guidelines and confirmation process', 4),
+('Code of Conduct', 'Company code of conduct and ethical guidelines', 5),
+('Work Hours, Attendance, Public Holidays & Leave Policy', 'Working hours, attendance tracking, and leave policies', 6),
+('IT & Data Security Policy', 'Information technology and data security guidelines', 7),
+('WorkPlace Conduct & Disciplinary Policy', 'Workplace behavior and disciplinary procedures', 8),
+('Work From Home (WFH) Guidelines', 'Remote work policies and guidelines', 9),
+('Company Assets Policy', 'Management and usage of company assets', 10),
+('Project Backout Policy', 'Project withdrawal and backout procedures', 11),
+('Bench Resources Policy', 'Management of bench resources and utilization', 12),
+('Training & Development Policy', 'Employee training and development programs', 13),
+('Performance Appraisal/ Reward & Recognition & PMS', 'Performance management and recognition systems', 14),
+('Exit Policy', 'Employee exit procedures and offboarding', 15)
+ON CONFLICT (name) DO NOTHING;

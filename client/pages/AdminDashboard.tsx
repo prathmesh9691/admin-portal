@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { getSupabase } from "@/lib/supabase";
 import EmployeeManagement from "@/components/admin/EmployeeManagement";
-import UploadSection from "@/components/admin/UploadSection";
+import HRManualUpload from "@/components/admin/HRManualUpload";
 import AssessmentManagement from "@/components/admin/AssessmentManagement";
 import DashboardAnalytics from "@/components/admin/DashboardAnalytics";
 import EmployeeIdGenerator from "@/components/admin/EmployeeIdGenerator";
@@ -91,7 +91,7 @@ export default function AdminDashboard() {
           <TabsTrigger value="employees">Employees</TabsTrigger>
           <TabsTrigger value="create-employee">Create Employee</TabsTrigger>
           <TabsTrigger value="assessments">Assessments</TabsTrigger>
-          <TabsTrigger value="uploads">Documents</TabsTrigger>
+          <TabsTrigger value="uploads">HR Manuals</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
@@ -230,7 +230,7 @@ export default function AdminDashboard() {
         </TabsContent>
 
         <TabsContent value="uploads" className="space-y-6">
-          <UploadSection />
+          <HRManualUpload />
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">

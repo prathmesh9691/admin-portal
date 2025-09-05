@@ -9,8 +9,9 @@ export function createServer() {
 
   // Middleware
   app.use(cors());
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  // Increase body size limits to support ~50MB PDF uploads (base64 overhead accounted)
+  app.use(express.json({ limit: '75mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '75mb' }));
 
   // In-memory stores for dev
   const employees: Record<string, { id: number; employeeId: string; name: string; department: string; email?: string; createdAt: string; passwordHash?: string }> = {};
@@ -90,7 +91,7 @@ export function createServer() {
       if (!policyId) return res.status(400).json({ message: "policyId is required" });
 
       const supabase = getServerSupabase();
-      const { data: pdf, error } = await supabase.from("pdf_files").select("file_name, content_base64").eq("id", policyId).maybeSingle();
+      const { data: pdf, error } = await supabase.from("pdf_files").select("file_name, content_base64, category_id").eq("id", policyId).maybeSingle();
       if (error || !pdf) return res.status(404).json({ message: "pdf not found" });
 
       // Call Gemini API to extract policies from PDF content
@@ -162,6 +163,21 @@ export function createServer() {
         }
 
         const extracted = { policyId, policies };
+        try {
+          // Persist into extracted_policies table as one row per policy
+          const rows = policies.map((p: any) => ({
+            pdf_id: policyId,
+            category_id: pdf.category_id ?? null,
+            policy_title: String(p.title ?? "Untitled"),
+            policy_content: String(p.content ?? "")
+          }));
+          if (rows.length > 0) {
+            const { error: insertErr } = await supabase.from("extracted_policies").insert(rows);
+            if (insertErr) console.error("Failed to insert extracted_policies:", insertErr);
+          }
+        } catch (persistErr) {
+          console.error("Persist extracted_policies error:", persistErr);
+        }
         res.json(extracted);
       } catch (geminiError) {
         console.error("Gemini API error:", geminiError);
@@ -176,6 +192,20 @@ export function createServer() {
             { title: "Data Security", content: "Maintain confidentiality of company and client information." }
           ],
         };
+        try {
+          const rows = extracted.policies.map((p: any) => ({
+            pdf_id: policyId,
+            category_id: pdf.category_id ?? null,
+            policy_title: String(p.title ?? "Untitled"),
+            policy_content: String(p.content ?? "")
+          }));
+          if (rows.length > 0) {
+            const { error: insertErr } = await supabase.from("extracted_policies").insert(rows);
+            if (insertErr) console.error("Failed to insert extracted_policies (fallback):", insertErr);
+          }
+        } catch (persistErr) {
+          console.error("Persist extracted_policies error (fallback):", persistErr);
+        }
         res.json(extracted);
       }
     } catch (e: any) {
@@ -308,6 +338,167 @@ export function createServer() {
   app.post("/api/upload", (_req, res) => {
     const now = new Date().toISOString();
     res.json({ id: Date.now(), fileName: "uploaded-file", uploadedAt: now });
+  });
+
+  // Get HR manual categories
+  app.get("/api/hr-categories", async (_req, res) => {
+    try {
+      const supabase = getServerSupabase();
+      const { data, error } = await supabase
+        .from("hr_manual_categories")
+        .select("*")
+        .order("order_index", { ascending: true });
+      
+      if (error) throw error;
+      res.json(data || []);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Failed to fetch categories" });
+    }
+  });
+
+  // Ensure HR categories exist (idempotent upsert)
+  app.post("/api/hr-categories/ensure", async (_req, res) => {
+    try {
+      const supabase = getServerSupabase();
+      const categories = [
+        { name: "Company Description", description: "Company overview shown to employees on first login", order_index: 0 },
+        { name: "Policy Organization Chart", description: "Organizational structure and policy hierarchy", order_index: 1 },
+        { name: "Recruitment Policy", description: "Guidelines for hiring and recruitment processes", order_index: 2 },
+        { name: "Joining Onboarding Process", description: "Employee onboarding procedures and requirements", order_index: 3 },
+        { name: "Probation Period & Confirmation Policy", description: "Probation period guidelines and confirmation process", order_index: 4 },
+        { name: "Code of Conduct", description: "Company code of conduct and ethical guidelines", order_index: 5 },
+        { name: "Work Hours, Attendance, Public Holidays & Leave Policy", description: "Working hours, attendance tracking, and leave policies", order_index: 6 },
+        { name: "IT & Data Security Policy", description: "Information technology and data security guidelines", order_index: 7 },
+        { name: "WorkPlace Conduct & Disciplinary Policy", description: "Workplace behavior and disciplinary procedures", order_index: 8 },
+        { name: "Work From Home (WFH) Guidelines", description: "Remote work policies and guidelines", order_index: 9 },
+        { name: "Company Assets Policy", description: "Management and usage of company assets", order_index: 10 },
+        { name: "Project Backout Policy", description: "Project withdrawal and backout procedures", order_index: 11 },
+        { name: "Bench Resources Policy", description: "Management of bench resources and utilization", order_index: 12 },
+        { name: "Training & Development Policy", description: "Employee training and development programs", order_index: 13 },
+        { name: "Performance Appraisal/ Reward & Recognition & PMS", description: "Performance management and recognition systems", order_index: 14 },
+        { name: "Exit Policy", description: "Employee exit procedures and offboarding", order_index: 15 },
+      ];
+
+      // Upsert by name
+      const { error } = await supabase
+        .from("hr_manual_categories")
+        .upsert(categories, { onConflict: "name" });
+
+      if (error) throw error;
+      const { data } = await supabase
+        .from("hr_manual_categories")
+        .select("*")
+        .order("order_index", { ascending: true });
+      res.json(data || []);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Failed to ensure categories" });
+    }
+  });
+
+  // Upload HR manual for specific category
+  app.post("/api/upload-hr-manual", async (req, res) => {
+    try {
+      const { fileName, mimeType, sizeBytes, contentBase64, categoryId } = req.body;
+      
+      if (!fileName || !contentBase64 || !categoryId) {
+        return res.status(400).json({ message: "fileName, contentBase64, and categoryId are required" });
+      }
+
+      // Validate size <= 50MB (binary). Base64 adds ~33% overhead.
+      const MAX_BYTES = 50 * 1024 * 1024; // 50MB
+      const b64 = String(contentBase64);
+      // Approximate decoded bytes from base64 length
+      const padding = (b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0);
+      const approxBytes = Math.floor((b64.length * 3) / 4) - padding;
+      if (approxBytes > MAX_BYTES) {
+        return res.status(413).json({ message: `File too large. Max 50MB; received ~${(approxBytes / (1024*1024)).toFixed(2)}MB` });
+      }
+
+      const supabase = getServerSupabase();
+      const { data, error } = await supabase
+        .from("pdf_files")
+        .insert({
+          file_name: fileName,
+          mime_type: mimeType || "application/pdf",
+          size_bytes: sizeBytes ?? approxBytes,
+          content_base64: contentBase64,
+          category_id: categoryId,
+          uploaded_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Supabase insert error (pdf_files):", error);
+        throw error;
+      }
+      res.json(data);
+    } catch (e: any) {
+      console.error("Upload failed:", e);
+      res.status(e?.status || 500).json({ message: e.message || "Upload failed" });
+    }
+  });
+
+  // Get HR manuals by category (latest first)
+  app.get("/api/hr-manuals/:categoryId", async (req, res) => {
+    try {
+      const { categoryId } = req.params;
+      const supabase = getServerSupabase();
+      
+      const { data, error } = await supabase
+        .from("pdf_files")
+        .select("id, file_name, mime_type, size_bytes, uploaded_at, extracted_policies, category_id")
+        .eq("category_id", categoryId)
+        .order("uploaded_at", { ascending: false });
+
+      if (error) throw error;
+      res.json(data || []);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Failed to fetch manuals" });
+    }
+  });
+
+  // Get all HR manuals (latest first)
+  app.get("/api/hr-manuals", async (_req, res) => {
+    try {
+      const supabase = getServerSupabase();
+      
+      const { data, error } = await supabase
+        .from("pdf_files")
+        .select("id, file_name, mime_type, size_bytes, uploaded_at, extracted_policies, category_id")
+        .not("category_id", "is", null)
+        .order("uploaded_at", { ascending: false });
+
+      if (error) throw error;
+      res.json(data || []);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Failed to fetch manuals" });
+    }
+  });
+
+  // Download HR manual
+  app.get("/api/hr-manual/:id/download", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const supabase = getServerSupabase();
+      
+      const { data, error } = await supabase
+        .from("pdf_files")
+        .select("file_name, content_base64, mime_type")
+        .eq("id", id)
+        .single();
+
+      if (error || !data) {
+        return res.status(404).json({ message: "Manual not found" });
+      }
+
+      const buffer = Buffer.from(data.content_base64, 'base64');
+      res.setHeader('Content-Type', data.mime_type || 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${data.file_name}"`);
+      res.send(buffer);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Download failed" });
+    }
   });
 
   return app;
