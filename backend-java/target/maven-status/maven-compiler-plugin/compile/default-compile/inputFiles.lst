@@ -1,0 +1,12 @@
+/Users/apple/admin-portal/backend-java/src/main/java/com/pulsehr/PulseHrApplication.java
+/Users/apple/admin-portal/backend-java/src/main/java/com/pulsehr/config/CorsConfig.java
+/Users/apple/admin-portal/backend-java/src/main/java/com/pulsehr/controller/AuthController.java
+/Users/apple/admin-portal/backend-java/src/main/java/com/pulsehr/controller/EmployeeController.java
+/Users/apple/admin-portal/backend-java/src/main/java/com/pulsehr/controller/UploadController.java
+/Users/apple/admin-portal/backend-java/src/main/java/com/pulsehr/model/Employee.java
+/Users/apple/admin-portal/backend-java/src/main/java/com/pulsehr/model/UploadFile.java
+/Users/apple/admin-portal/backend-java/src/main/java/com/pulsehr/repository/EmployeeRepository.java
+/Users/apple/admin-portal/backend-java/src/main/java/com/pulsehr/repository/UploadFileRepository.java
+/Users/apple/admin-portal/backend-java/src/main/java/com/pulsehr/service/AdminAuthService.java
+/Users/apple/admin-portal/backend-java/src/main/java/com/pulsehr/service/EmployeeService.java
+/Users/apple/admin-portal/backend-java/src/main/java/com/pulsehr/service/StorageService.java

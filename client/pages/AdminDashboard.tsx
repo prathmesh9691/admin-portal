@@ -13,6 +13,8 @@ import HRManualUpload from "@/components/admin/HRManualUpload";
 import AssessmentManagement from "@/components/admin/AssessmentManagement";
 import DashboardAnalytics from "@/components/admin/DashboardAnalytics";
 import EmployeeIdGenerator from "@/components/admin/EmployeeIdGenerator";
+import CompanyDescriptionManager from "@/components/admin/CompanyDescriptionManager";
+import EmployeeDocumentManager from "@/components/admin/EmployeeDocumentManager";
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -86,12 +88,14 @@ export default function AdminDashboard() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="employees">Employees</TabsTrigger>
           <TabsTrigger value="create-employee">Create Employee</TabsTrigger>
-          <TabsTrigger value="assessments">Assessments</TabsTrigger>
+          <TabsTrigger value="company-description">Company Pages</TabsTrigger>
           <TabsTrigger value="uploads">HR Manuals</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="assessments">Assessments</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
@@ -229,8 +233,16 @@ export default function AdminDashboard() {
           <AssessmentManagement />
         </TabsContent>
 
+        <TabsContent value="company-description" className="space-y-6">
+          <CompanyDescriptionManager />
+        </TabsContent>
+
         <TabsContent value="uploads" className="space-y-6">
           <HRManualUpload />
+        </TabsContent>
+
+        <TabsContent value="documents" className="space-y-6">
+          <EmployeeDocumentManager />
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">

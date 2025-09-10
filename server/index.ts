@@ -501,5 +501,267 @@ export function createServer() {
     }
   });
 
+  // Company Description Pages endpoints
+  app.get("/api/company-description-pages", async (_req, res) => {
+    try {
+      const supabase = getServerSupabase();
+      const { data, error } = await supabase
+        .from("company_description_pages")
+        .select("*")
+        .order("page_number", { ascending: true });
+      
+      if (error) throw error;
+      res.json(data || []);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Failed to fetch company description pages" });
+    }
+  });
+
+  app.post("/api/company-description-pages", async (req, res) => {
+    try {
+      const { pageNumber, title, contentBase64, fileName } = req.body;
+      
+      if (!pageNumber || !title || !contentBase64 || !fileName) {
+        return res.status(400).json({ message: "pageNumber, title, contentBase64, and fileName are required" });
+      }
+
+      const supabase = getServerSupabase();
+      const { data, error } = await supabase
+        .from("company_description_pages")
+        .upsert({
+          page_number: pageNumber,
+          title,
+          content_base64: contentBase64,
+          file_name: fileName,
+          uploaded_at: new Date().toISOString()
+        }, { onConflict: "page_number" })
+        .select()
+        .single();
+
+      if (error) throw error;
+      res.json(data);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Failed to save company description page" });
+    }
+  });
+
+  // Document Types endpoints
+  app.get("/api/document-types", async (_req, res) => {
+    try {
+      const supabase = getServerSupabase();
+      const { data, error } = await supabase
+        .from("document_types")
+        .select("*")
+        .order("order_index", { ascending: true });
+      
+      if (error) throw error;
+      res.json(data || []);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Failed to fetch document types" });
+    }
+  });
+
+  // Employee Document Upload endpoints
+  app.post("/api/employee-documents", async (req, res) => {
+    try {
+      const { employeeId, documentType, documentName, fileName, fileContentBase64, fileSizeBytes, mimeType, status = "completed" } = req.body;
+      
+      if (!employeeId || !documentType || !documentName) {
+        return res.status(400).json({ message: "employeeId, documentType, and documentName are required" });
+      }
+
+      const supabase = getServerSupabase();
+      const { data, error } = await supabase
+        .from("employee_document_uploads")
+        .upsert({
+          employee_id: employeeId,
+          document_type: documentType,
+          document_name: documentName,
+          file_name: fileName,
+          file_content_base64: fileContentBase64,
+          file_size_bytes: fileSizeBytes,
+          mime_type: mimeType,
+          status: status,
+          uploaded_at: new Date().toISOString()
+        }, { onConflict: "employee_id,document_type" })
+        .select()
+        .single();
+
+      if (error) throw error;
+      res.json(data);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Failed to save document upload" });
+    }
+  });
+
+  app.get("/api/employee-documents/:employeeId", async (req, res) => {
+    try {
+      const { employeeId } = req.params;
+      const supabase = getServerSupabase();
+      
+      const { data, error } = await supabase
+        .from("employee_document_uploads")
+        .select("*")
+        .eq("employee_id", employeeId)
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+      res.json(data || []);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Failed to fetch employee documents" });
+    }
+  });
+
+  // Policy Acknowledgement endpoints
+  app.post("/api/policy-acknowledgements", async (req, res) => {
+    try {
+      const { employeeId, policyCategoryId } = req.body;
+      
+      if (!employeeId || !policyCategoryId) {
+        return res.status(400).json({ message: "employeeId and policyCategoryId are required" });
+      }
+
+      const supabase = getServerSupabase();
+      const { data, error } = await supabase
+        .from("hr_policy_acknowledgments")
+        .upsert({
+          employee_id: employeeId,
+          policy_category_id: policyCategoryId,
+          acknowledged_at: new Date().toISOString()
+        }, { onConflict: "employee_id,policy_category_id" })
+        .select()
+        .single();
+
+      if (error) throw error;
+      res.json(data);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Failed to save policy acknowledgement" });
+    }
+  });
+
+  app.get("/api/policy-acknowledgements/:employeeId", async (req, res) => {
+    try {
+      const { employeeId } = req.params;
+      const supabase = getServerSupabase();
+      
+      const { data, error } = await supabase
+        .from("hr_policy_acknowledgments")
+        .select("*")
+        .eq("employee_id", employeeId);
+
+      if (error) throw error;
+      res.json(data || []);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Failed to fetch policy acknowledgements" });
+    }
+  });
+
+  // Employee Progress endpoints
+  app.get("/api/employee-progress/:employeeId", async (req, res) => {
+    try {
+      const { employeeId } = req.params;
+      const supabase = getServerSupabase();
+      
+      const { data, error } = await supabase
+        .from("employee_progress")
+        .select("*")
+        .eq("employee_id", employeeId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      res.json(data || null);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Failed to fetch employee progress" });
+    }
+  });
+
+  app.post("/api/employee-progress", async (req, res) => {
+    try {
+      const { employeeId, companyDescriptionViewed, onboardingCompleted, documentsUploaded, policiesAcknowledged, assessmentCompleted } = req.body;
+      
+      if (!employeeId) {
+        return res.status(400).json({ message: "employeeId is required" });
+      }
+
+      const supabase = getServerSupabase();
+      const { data, error } = await supabase
+        .from("employee_progress")
+        .upsert({
+          employee_id: employeeId,
+          company_description_viewed: companyDescriptionViewed || false,
+          onboarding_completed: onboardingCompleted || false,
+          documents_uploaded: documentsUploaded || false,
+          policies_acknowledged: policiesAcknowledged || false,
+          assessment_completed: assessmentCompleted || false,
+          updated_at: new Date().toISOString()
+        }, { onConflict: "employee_id" })
+        .select()
+        .single();
+
+      if (error) throw error;
+      res.json(data);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Failed to save employee progress" });
+    }
+  });
+
+  // Admin Employee Document Management endpoints
+  app.get("/api/admin/employee-documents", async (_req, res) => {
+    try {
+      const supabase = getServerSupabase();
+      const { data, error } = await supabase
+        .from("employee_document_uploads")
+        .select(`
+          *,
+          employees!inner(id, employee_id, name, department)
+        `)
+        .order("uploaded_at", { ascending: false });
+
+      if (error) throw error;
+      res.json(data || []);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Failed to fetch employee documents" });
+    }
+  });
+
+  app.get("/api/admin/employee-documents/:documentId/download", async (req, res) => {
+    try {
+      const { documentId } = req.params;
+      const supabase = getServerSupabase();
+      
+      const { data, error } = await supabase
+        .from("employee_document_uploads")
+        .select("file_name, file_content_base64, mime_type")
+        .eq("id", documentId)
+        .single();
+
+      if (error || !data) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      const buffer = Buffer.from(data.file_content_base64, 'base64');
+      res.setHeader('Content-Type', data.mime_type || 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${data.file_name}"`);
+      res.send(buffer);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Download failed" });
+    }
+  });
+
+  app.get("/api/employees", async (_req, res) => {
+    try {
+      const supabase = getServerSupabase();
+      const { data, error } = await supabase
+        .from("employees")
+        .select("id, employee_id, name, department")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      res.json(data || []);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Failed to fetch employees" });
+    }
+  });
+
   return app;
 }

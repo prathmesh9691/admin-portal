@@ -8,8 +8,9 @@ import { toast } from "sonner";
 import { getSupabase } from "@/lib/supabase";
 import OnboardingForm from "@/components/employee/OnboardingForm";
 import AssessmentCenter from "@/components/employee/AssessmentCenter";
-import CompanyDescriptionViewer from "@/components/employee/CompanyDescriptionViewer";
-import HRManualReader from "@/components/employee/HRManualReader";
+import CompanyDescriptionPages from "@/components/employee/CompanyDescriptionPages";
+import DocumentUpload from "@/components/employee/DocumentUpload";
+import PolicyAcknowledgement from "@/components/employee/PolicyAcknowledgement";
 
 interface EmployeeSession {
   id: string;
@@ -25,7 +26,8 @@ export default function Employee() {
   const [session, setSession] = useState<EmployeeSession | null>(null);
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
   const [companyIntroDone, setCompanyIntroDone] = useState(false);
-  const [hrManualsDone, setHrManualsDone] = useState(false);
+  const [documentsUploaded, setDocumentsUploaded] = useState(false);
+  const [policiesAcknowledged, setPoliciesAcknowledged] = useState(false);
   const [activeTab, setActiveTab] = useState("onboarding");
   const supabase = getSupabase();
 
@@ -206,7 +208,7 @@ export default function Employee() {
 
         <TabsContent value="onboarding" className="space-y-6">
           {!companyIntroDone ? (
-            <CompanyDescriptionViewer onComplete={() => setCompanyIntroDone(true)} />
+            <CompanyDescriptionPages onComplete={() => setCompanyIntroDone(true)} />
           ) : !onboardingCompleted ? (
             <OnboardingForm 
               employeeId={session.id} 
@@ -214,13 +216,21 @@ export default function Employee() {
                 setOnboardingCompleted(true);
               }} 
             />
-          ) : !hrManualsDone ? (
-            <HRManualReader onComplete={() => { setHrManualsDone(true); setActiveTab("assessments"); }} />
+          ) : !documentsUploaded ? (
+            <DocumentUpload 
+              employeeId={session.id}
+              onComplete={() => setDocumentsUploaded(true)}
+            />
+          ) : !policiesAcknowledged ? (
+            <PolicyAcknowledgement 
+              employeeId={session.id}
+              onComplete={() => { setPoliciesAcknowledged(true); setActiveTab("assessments"); }}
+            />
           ) : (
             <Card>
               <CardHeader>
                 <CardTitle>Ready for Assessment</CardTitle>
-                <CardDescription>You have completed onboarding and HR manuals.</CardDescription>
+                <CardDescription>You have completed all onboarding steps.</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="text-center py-8">
