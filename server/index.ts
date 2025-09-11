@@ -501,6 +501,28 @@ export function createServer() {
     }
   });
 
+  // Delete HR manual and its extracted policies
+  app.delete("/api/hr-manual/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const supabase = getServerSupabase();
+      const { error: delPoliciesErr } = await supabase
+        .from("extracted_policies")
+        .delete()
+        .eq("pdf_id", id);
+      if (delPoliciesErr) console.error("Failed to delete extracted_policies:", delPoliciesErr);
+
+      const { error } = await supabase
+        .from("pdf_files")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Failed to delete HR manual" });
+    }
+  });
+
   // Company Description Pages endpoints
   app.get("/api/company-description-pages", async (_req, res) => {
     try {
@@ -542,6 +564,21 @@ export function createServer() {
       res.json(data);
     } catch (e: any) {
       res.status(500).json({ message: e.message || "Failed to save company description page" });
+    }
+  });
+
+  app.delete("/api/company-description-pages/:pageNumber", async (req, res) => {
+    try {
+      const { pageNumber } = req.params as any;
+      const supabase = getServerSupabase();
+      const { error } = await supabase
+        .from("company_description_pages")
+        .delete()
+        .eq("page_number", Number(pageNumber));
+      if (error) throw error;
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Failed to delete company description page" });
     }
   });
 
@@ -609,6 +646,21 @@ export function createServer() {
       res.json(data || []);
     } catch (e: any) {
       res.status(500).json({ message: e.message || "Failed to fetch employee documents" });
+    }
+  });
+
+  app.delete("/api/employee-documents/:documentId", async (req, res) => {
+    try {
+      const { documentId } = req.params;
+      const supabase = getServerSupabase();
+      const { error } = await supabase
+        .from("employee_document_uploads")
+        .delete()
+        .eq("id", documentId);
+      if (error) throw error;
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Failed to delete employee document" });
     }
   });
 

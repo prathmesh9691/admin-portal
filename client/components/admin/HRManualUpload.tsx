@@ -250,6 +250,22 @@ export default function HRManualUpload() {
                             {extracting === last.id ? "Extracting..." : "Extract Policies"}
                           </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(`/api/hr-manual/${last.id}`, { method: 'DELETE' });
+                              if (!res.ok) throw new Error('Delete failed');
+                              setManuals(prev => prev.filter(m => m.id !== last.id));
+                              toast.success('Manual deleted');
+                            } catch (e: any) {
+                              toast.error(e.message || 'Delete failed');
+                            }
+                          }}
+                        >
+                          Delete
+                        </Button>
                       </>
                     )}
                   </div>

@@ -183,6 +183,22 @@ export default function CompanyDescriptionManager() {
                         >
                           Download
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(`/api/company-description-pages/${page.page_number}`, { method: 'DELETE' });
+                              if (!res.ok) throw new Error('Delete failed');
+                              setPages(prev => prev.filter(p => p.page_number !== page.page_number));
+                              toast.success(`Deleted Page ${page.page_number}`);
+                            } catch (e: any) {
+                              toast.error(e.message || 'Delete failed');
+                            }
+                          }}
+                        >
+                          Delete
+                        </Button>
                       </div>
                     </div>
                   )}
