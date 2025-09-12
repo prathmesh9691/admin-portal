@@ -6,6 +6,43 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { CheckCircle, FileText } from "lucide-react";
 
+function PolicyPdfViewer({ categoryId }: { categoryId: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/hr-manuals/${categoryId}`);
+        if (!res.ok) throw new Error("Failed to load manual");
+        const manuals = await res.json();
+        if (manuals && manuals.length > 0) {
+          const latest = manuals[0];
+          const dl = await fetch(`/api/hr-manual/${latest.id}/download`);
+          if (!dl.ok) throw new Error("Failed to download manual");
+          const blob = await dl.blob();
+          const obj = URL.createObjectURL(blob);
+          if (active) setUrl(`${obj}#page=1`);
+        } else {
+          if (active) setUrl(null);
+        }
+      } catch {
+        if (active) setUrl(null);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [categoryId]);
+  if (loading) return <div className="text-sm text-muted-foreground">Loading PDF...</div>;
+  if (!url) return <div className="text-sm text-muted-foreground">No policy document uploaded for this section.</div>;
+  return (
+    <div className="aspect-[1/1.414] w-full border rounded overflow-hidden bg-white">
+      <iframe title="Policy PDF" src={url} className="w-full h-[60vh]" />
+    </div>
+  );
+}
+
 interface PolicyCategory {
   id: string;
   name: string;
@@ -167,21 +204,16 @@ export default function PolicyAcknowledgement({ employeeId, onComplete }: Policy
               </div>
             </div>
 
-            {/* Policy Content Placeholder */}
+            {/* Policy Content Viewer */}
             <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-3">
                 <FileText className="h-5 w-5 text-blue-600" />
                 <span className="font-medium">Policy Document</span>
-                {isAcknowledged && (
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                )}
+                {isAcknowledged && <CheckCircle className="h-5 w-5 text-green-600" />}
               </div>
-              <p className="text-sm text-muted-foreground">
-                {isAcknowledged 
-                  ? "You have already acknowledged this policy." 
-                  : "Please read the policy document carefully before acknowledging."
-                }
-              </p>
+              {/* Load latest manual PDF for this category and show inline */}
+              <PolicyPdfViewer categoryId={currentCategory.id} />
+              <p className="text-xs text-muted-foreground mt-2">Please read the policy document carefully before acknowledging.</p>
             </div>
 
             {/* Acknowledgement Checkbox */}

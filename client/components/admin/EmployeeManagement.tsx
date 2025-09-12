@@ -100,21 +100,45 @@ export default function EmployeeManagement() {
         policy_reads: policyReads || []
       };
       
-      // Download as JSON
-      const dataStr = JSON.stringify(employeeData, null, 2);
-      const dataBlob = new Blob([dataStr], { type: "application/json" });
+      // Download as plain text
+      const textLines: string[] = [];
+      textLines.push(`Employee ID: ${employee.employee_id}`);
+      textLines.push(`Name: ${employee.name}`);
+      textLines.push(`Department: ${employee.department}`);
+      textLines.push(`Email: ${employee.email ?? ''}`);
+      textLines.push(`Created: ${employee.created_at}`);
+      textLines.push(`Onboarding Completed: ${employee.onboarding_completed ? 'Yes' : 'No'}`);
+      textLines.push("\n-- Onboarding Data --\n" + JSON.stringify(onboardingData || {}, null, 2));
+      textLines.push("\n-- Policies Acknowledged --\n" + JSON.stringify(policies || [], null, 2));
+      textLines.push("\n-- Policy Reads --\n" + JSON.stringify(policyReads || [], null, 2));
+
+      const dataStr = textLines.join("\n");
+      const dataBlob = new Blob([dataStr], { type: "text/plain;charset=utf-8" });
       const url = window.URL.createObjectURL(dataBlob);
-      const a = document.createElement("a");
+      const a = window.document.createElement("a");
       a.href = url;
-      a.download = `${employee.employee_id}_${employee.name}_data.json`;
-      document.body.appendChild(a);
+      a.download = `${employee.employee_id}_${employee.name}_data.txt`;
+      window.document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      window.document.body.removeChild(a);
       
       toast.success("Employee data downloaded");
     } catch (err: any) {
       toast.error(err.message || "Download failed");
+    }
+  }
+
+  async function deleteEmployee(employee: Employee) {
+    try {
+      const confirmed = window.confirm(`Delete ${employee.name} (${employee.employee_id})? This will remove all related data.`);
+      if (!confirmed) return;
+      const res = await fetch(`/api/admin/employee/${employee.id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+      toast.success('Employee deleted');
+      loadEmployees();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete employee');
     }
   }
 
@@ -179,6 +203,13 @@ export default function EmployeeManagement() {
                         onClick={() => downloadEmployeeData(employee)}
                       >
                         Download Data
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => deleteEmployee(employee)}
+                      >
+                        Delete
                       </Button>
                     </div>
                   </div>

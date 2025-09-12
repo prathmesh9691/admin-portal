@@ -815,5 +815,21 @@ export function createServer() {
     }
   });
 
+  // Delete employee and cascade related data (relies on FK ON DELETE CASCADE)
+  app.delete("/api/admin/employee/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const supabase = getServerSupabase();
+      const { error } = await supabase
+        .from("employees")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Failed to delete employee" });
+    }
+  });
+
   return app;
 }

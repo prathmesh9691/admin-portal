@@ -1,3 +1,5 @@
+"use client";  // ✅ ensure this is a client component
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +25,7 @@ interface DocumentUpload {
   file_name: string;
   file_size_bytes: number;
   mime_type: string;
-  status: 'pending' | 'completed' | 'skipped';
+  status: "pending" | "completed" | "skipped";
   uploaded_at: string;
   employees: Employee;
 }
@@ -66,43 +68,55 @@ export default function EmployeeDocumentManager() {
     }
   }
 
-  async function downloadDocument(document: DocumentUpload) {
+  // ✅ Browser-safe download handler
+  async function downloadDocument(docItem: DocumentUpload) {
     try {
-      const response = await fetch(`/api/admin/employee-documents/${document.id}/download`);
+      const response = await fetch(`/api/admin/employee-documents/${docItem.id}/download`);
       if (!response.ok) throw new Error("Download failed");
-      
+
       const blob = await response.blob();
+      const filename = docItem.file_name || `file-${docItem.id}`;
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = document.file_name;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
+
+      if (typeof window !== "undefined" && typeof document !== "undefined") {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } else {
+        // fallback if somehow not in browser
+        window.open(url, "_blank");
+      }
+
       toast.success("Document downloaded");
     } catch (err: any) {
       toast.error(err.message || "Download failed");
     }
   }
 
-  const filteredDocuments = documents.filter(doc => {
-    const matchesEmployee = selectedEmployee === "all" || doc.employee_id === selectedEmployee;
-    const matchesStatus = selectedStatus === "all" || doc.status === selectedStatus;
-    const matchesSearch = searchTerm === "" || 
+  const filteredDocuments = documents.filter((doc) => {
+    const matchesEmployee =
+      selectedEmployee === "all" || doc.employee_id === selectedEmployee;
+    const matchesStatus =
+      selectedStatus === "all" || doc.status === selectedStatus;
+    const matchesSearch =
+      searchTerm === "" ||
       doc.document_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       doc.employees.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       doc.employees.employee_id.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     return matchesEmployee && matchesStatus && matchesSearch;
   });
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'completed':
+      case "completed":
         return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'skipped':
+      case "skipped":
         return <XCircle className="h-4 w-4 text-orange-600" />;
       default:
         return <Clock className="h-4 w-4 text-blue-600" />;
@@ -111,9 +125,9 @@ export default function EmployeeDocumentManager() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'completed':
+      case "completed":
         return <Badge variant="default" className="bg-green-100 text-green-800">Completed</Badge>;
-      case 'skipped':
+      case "skipped":
         return <Badge variant="secondary" className="bg-orange-100 text-orange-800">Skipped</Badge>;
       default:
         return <Badge variant="outline" className="bg-blue-100 text-blue-800">Pending</Badge>;
@@ -248,7 +262,7 @@ export default function EmployeeDocumentManager() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {doc.status === 'skipped' ? '-' : formatFileSize(doc.file_size_bytes)}
+                      {doc.status === "skipped" ? "-" : formatFileSize(doc.file_size_bytes)}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -260,7 +274,7 @@ export default function EmployeeDocumentManager() {
                       {new Date(doc.uploaded_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
-                      {doc.status === 'completed' ? (
+                      {doc.status === "completed" ? (
                         <Button
                           size="sm"
                           variant="outline"
