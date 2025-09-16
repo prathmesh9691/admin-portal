@@ -506,6 +506,12 @@ export function createServer() {
     try {
       const { id } = req.params;
       const supabase = getServerSupabase();
+      // Remove policy_reads referencing this manual
+      const { error: delReadsErr } = await supabase
+        .from("policy_reads")
+        .delete()
+        .eq("policy_id", id);
+      if (delReadsErr) console.error("Failed to delete policy_reads:", delReadsErr);
       const { error: delPoliciesErr } = await supabase
         .from("extracted_policies")
         .delete()
@@ -820,6 +826,22 @@ export function createServer() {
     try {
       const { id } = req.params;
       const supabase = getServerSupabase();
+      // Manually delete dependents to handle non-cascade constraints in existing DBs
+      const deps = [
+        { table: "employee_document_uploads", col: "employee_id" },
+        { table: "employee_onboarding", col: "employee_id" },
+        { table: "employee_progress", col: "employee_id" },
+        { table: "assessment_attempts", col: "employee_id" },
+        { table: "hr_policy_acknowledgments", col: "employee_id" },
+        { table: "policy_reads", col: "employee_id" },
+      ];
+      for (const d of deps) {
+        const { error: depErr } = await supabase
+          .from(d.table as any)
+          .delete()
+          .eq(d.col, id);
+        if (depErr) console.error(`Failed deleting from ${d.table}:`, depErr);
+      }
       const { error } = await supabase
         .from("employees")
         .delete()

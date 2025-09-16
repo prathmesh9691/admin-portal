@@ -13,6 +13,7 @@ import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import Employee from "./pages/Employee";
 import Header from "./components/layout/Header";
+import BDDashboard from "./pages/BDDashboard";
 import Footer from "./components/layout/Footer";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ const App = () => {
                 <Route path="/admin/login" element={<AdminLogin />} />
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/employee" element={<Employee />} />
+                <Route path="/bd-dashboard" element={<BDDashboard />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

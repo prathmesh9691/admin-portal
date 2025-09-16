@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -115,13 +116,19 @@ export default function EmployeeIdGenerator() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="department">Department *</Label>
-              <Input 
-                id="department" 
-                value={form.department} 
-                onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))} 
-                placeholder="e.g., IT, HR, Sales"
-                required 
-              />
+              <Select value={form.department} onValueChange={(v) => setForm((f) => ({ ...f, department: v }))}>
+                <SelectTrigger id="department">
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Accounts & Finance">Accounts & Finance</SelectItem>
+                  <SelectItem value="Management">Management</SelectItem>
+                  <SelectItem value="Operations">Operations</SelectItem>
+                  <SelectItem value="Development / IT">Development / IT</SelectItem>
+                  <SelectItem value="Marketing">Marketing</SelectItem>
+                  <SelectItem value="Business Development (BD)">Business Development (BD)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="md:col-span-2 space-y-2">
               <Label htmlFor="email">Email (optional)</Label>
