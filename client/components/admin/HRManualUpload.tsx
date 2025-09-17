@@ -274,7 +274,7 @@ export default function HRManualUpload() {
             })}
           </div>
         </CardContent>
-      </Card>
-    </div>
+//       </Card>
+//     </div>
   );
 }
